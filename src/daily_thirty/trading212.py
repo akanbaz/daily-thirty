@@ -127,6 +127,19 @@ def pick_single_position(
     return parsed[0][0]
 
 
+def list_holdings(*, env: str | None = None) -> list[tuple[str, float, float, float]]:
+    """Read-only: every open equity position as (symbol, shares, avg_price, value)."""
+    rows = fetch_positions(env=env)
+    out: list[tuple[str, float, float, float]] = []
+    for raw in rows:
+        symbol, qty, avg, value = _position_fields(raw)
+        if qty <= 0 or not symbol:
+            continue
+        out.append((symbol, qty, avg, value))
+    out.sort(key=lambda x: x[3], reverse=True)
+    return out
+
+
 def sync_position(
     *,
     watchlist: list[str] | None = None,
