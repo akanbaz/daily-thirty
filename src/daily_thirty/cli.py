@@ -7,6 +7,7 @@ from rich.console import Console
 
 from daily_thirty.decide import decide
 from daily_thirty.state import Position, load_config, load_position, save_position
+from daily_thirty.trading212 import credentials_configured, sync_position
 
 app = typer.Typer(
     name="daily",
@@ -31,10 +32,43 @@ def cmd_status() -> None:
     )
 
 
+@app.command("sync")
+def cmd_sync() -> None:
+    """Read-only: pull your Trading 212 position into position.json (no orders)."""
+    if not credentials_configured():
+        console.print(
+            "Set [bold]T212_API_KEY[/bold] and [bold]T212_API_SECRET[/bold] "
+            "(optional [bold]T212_ENV=live|demo[/bold]).\n"
+            "Create keys in Trading 212 → Settings → API (Beta). Use read-only scopes."
+        )
+        raise typer.Exit(1)
+    cfg = load_config()
+    watchlist = [str(t).upper() for t in cfg.get("watchlist", [])]
+    result = sync_position(watchlist=watchlist)
+    console.print(result.message)
+    if result.position is None:
+        console.print("position.json cleared (flat / no matching holding).")
+    else:
+        console.print("Saved to position.json. Run [bold]daily decide[/bold] next.")
+
+
 @app.command("decide")
-def cmd_decide() -> None:
+def cmd_decide(
+    sync: bool = typer.Option(
+        False,
+        "--sync",
+        help="Pull Trading 212 position first (needs T212_API_KEY/SECRET).",
+    ),
+) -> None:
     """Today's decision: HOLD or SELL & ROTATE (or first buy)."""
     cfg = load_config()
+    if sync:
+        if not credentials_configured():
+            console.print("Missing T212_API_KEY / T212_API_SECRET for --sync.")
+            raise typer.Exit(1)
+        watchlist = [str(t).upper() for t in cfg.get("watchlist", [])]
+        synced = sync_position(watchlist=watchlist)
+        console.print(synced.message)
     pos = load_position()
     result = decide(cfg, pos)
     console.print(result.message)

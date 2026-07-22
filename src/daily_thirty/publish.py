@@ -158,8 +158,9 @@ def _html(payload: dict, repo_url: str) -> str:
       <a class="btn secondary" href="{repo_url}">Repo</a>
     </p>
     <p class="meta">
-      Record trades via <strong>Actions → Record trade → Run workflow</strong>
-      (buys/sells update <code>position.json</code> in the repo).
+      Position can sync read-only from Trading 212 (repo secrets
+      <code>T212_API_KEY</code> / <code>T212_API_SECRET</code>), or record fills via
+      <strong>Actions → Record trade</strong>. No orders are placed by this app.
     </p>
   </main>
 </body>

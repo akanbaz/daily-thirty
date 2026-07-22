@@ -23,7 +23,31 @@ Also always available in-repo:
 
 Manual re-run: [Actions → Decide → Run workflow](https://github.com/akanbaz/daily-thirty/actions/workflows/decide.yml)
 
+## Trading 212 sync (read-only)
+
+The app can **read** your open position from Trading 212 and write `position.json`.
+It does **not** place buys or sells.
+
+1. In Trading 212: **Settings → API (Beta)** → create a key with **positions read** only (Invest or Stocks ISA).
+2. Add GitHub Actions secrets on this repo:
+   - `T212_API_KEY`
+   - `T212_API_SECRET`
+   - optional `T212_ENV` = `live` (default) or `demo`
+3. Re-run [Decide](https://github.com/akanbaz/daily-thirty/actions/workflows/decide.yml).
+
+Locally:
+```bash
+export T212_API_KEY=...
+export T212_API_SECRET=...
+export T212_ENV=live   # or demo
+uv run daily sync
+uv run daily decide --sync
+```
+
+If you hold several names, it picks the largest (by value) that is on the watchlist.
+
 ## Record a trade (also on GitHub)
+Still available if you prefer manual fills:
 1. Open [Record trade](https://github.com/akanbaz/daily-thirty/actions/workflows/record-trade.yml)
 2. **Run workflow**
 3. Choose `bought` or `sold`, enter fill details
