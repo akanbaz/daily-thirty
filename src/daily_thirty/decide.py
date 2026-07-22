@@ -219,8 +219,7 @@ def decide(cfg: dict, position: Position | None) -> Decision:
                 f"Decision: HOLD {position.ticker}\n"
                 f"Last close: {close:.2f}\n"
                 f"Why hold: {exit_why}\n"
-                f"You can still add today's £{daily:.0f} into {position.ticker}.\n"
-                f"(Share count / entry kept private — check Trading 212.)"
+                f"You can still add today's £{daily:.0f} into {position.ticker}."
                 f"{_price_note(df)}"
             ),
             position=position,
@@ -245,8 +244,7 @@ def decide(cfg: dict, position: Position | None) -> Decision:
                 f"Decision: SELL {position.ticker}\n"
                 f"Exit reason: {exit_why}\n"
                 f"Last close: {close:.2f}\n"
-                f"{replacement}\n"
-                f"(Size / £ value kept private — check Trading 212.)"
+                f"{replacement}"
                 f"{_price_note(df)}"
             ),
             position=position,
@@ -265,9 +263,7 @@ def decide(cfg: dict, position: Position | None) -> Decision:
             f"\n"
             f"2) BUY {scan.best.ticker} with the full proceeds\n"
             f"   Market ~{scan.best.close:.2f}\n"
-            f"   Why: {scan.best.why} (best 10-day momentum on the watchlist)\n"
-            f"\n"
-            f"(Share counts / £ amounts kept private — check Trading 212.)"
+            f"   Why: {scan.best.why} (best 10-day momentum on the watchlist)"
             f"{_price_note(df)}"
             f"{_scan_warning(scan)}"
         ),

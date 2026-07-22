@@ -27,7 +27,7 @@ def main() -> None:
     result = decide(cfg, pos)
     repo = os.environ.get("GITHUB_REPOSITORY", "akanbaz/daily-thirty")
     repo_url = f"https://github.com/{repo}"
-    site = write_outputs(result, pos, root=root, repo_url=repo_url)
+    site = write_outputs(result, pos, cfg, root=root, repo_url=repo_url)
     print(result.message)
     print(f"\nWrote {site / 'index.html'}")
     print(f"Action: {result.action}")
