@@ -15,6 +15,16 @@ class Candidate:
     ret_10: float
     ret_5: float
     why: str
+    stale: bool = False
+
+
+@dataclass
+class Scan:
+    """Result of scanning the watchlist, including how trustworthy it was."""
+    best: Candidate | None
+    notes: list[str]
+    checked: int  # names we evaluated with usable prices
+    failed: int   # names whose prices could not be loaded
 
 
 @dataclass
@@ -70,12 +80,14 @@ def pick_next(
     watchlist: list[str],
     *,
     exclude: str | None = None,
-) -> tuple[Candidate | None, list[str]]:
-    """Return (best candidate, fetch/skip notes)."""
+) -> Scan:
+    """Scan the watchlist for the best buy, tracking data failures."""
     import time
 
     best: Candidate | None = None
     notes: list[str] = []
+    checked = 0
+    failed = 0
     for ticker in watchlist:
         if exclude and ticker.upper() == exclude.upper():
             continue
@@ -87,11 +99,14 @@ def pick_next(
             if "429" in err:
                 err = "rate-limited (Yahoo 429) — need committed cache"
             notes.append(f"{ticker}: fetch failed ({err})")
+            failed += 1
             continue
         row = _enriched_last(df)
         if row is None:
             notes.append(f"{ticker}: no price data")
+            failed += 1
             continue
+        checked += 1
         ok, why = is_eligible(row)
         if not ok:
             notes.append(f"{ticker}: {why}")
@@ -102,11 +117,41 @@ def pick_next(
             ret_10=float(row["ret_10"]),
             ret_5=float(row["ret_5"]),
             why=why,
+            stale=bool(df.attrs.get("stale", False)),
         )
         notes.append(f"{ticker}: eligible ({why})")
         if best is None or cand.ret_10 > best.ret_10:
             best = cand
-    return best, notes
+    return Scan(best=best, notes=notes, checked=checked, failed=failed)
+
+
+def _scan_warning(scan: Scan) -> str:
+    """Caution text when the watchlist scan couldn't be fully trusted."""
+    lines: list[str] = []
+    if scan.failed:
+        total = scan.checked + scan.failed
+        lines.append(
+            f"Heads-up: only {scan.checked} of {total} names loaded "
+            f"({scan.failed} failed). This pick may not be the true best — "
+            f"re-run later before acting."
+        )
+    if scan.best is not None and scan.best.stale:
+        lines.append(
+            "Heads-up: this price is from cached data (live fetch failed); "
+            "treat it as approximate."
+        )
+    return ("\n\n" + "\n".join(lines)) if lines else ""
+
+
+def _price_note(df: pd.DataFrame) -> str:
+    """Caution text when the held stock's price is stale cache."""
+    if not df.attrs.get("stale"):
+        return ""
+    days = float(df.attrs.get("age_hours", 0.0)) / 24
+    return (
+        f"\n\nNote: live prices didn't load — using cached data about "
+        f"{days:.0f} day(s) old. Re-run later to confirm before you act."
+    )
 
 
 def decide(cfg: dict, position: Position | None) -> Decision:
@@ -115,13 +160,18 @@ def decide(cfg: dict, position: Position | None) -> Decision:
     daily = float(cfg.get("daily_pounds", 30))
 
     if position is None:
-        nxt, notes = pick_next(watchlist)
-        if nxt is None:
-            detail = "\n".join(f"  - {n}" for n in notes[-8:]) or "  (no details)"
+        scan = pick_next(watchlist)
+        if scan.best is None:
+            detail = "\n".join(f"  - {n}" for n in scan.notes[-8:]) or "  (no details)"
+            # If nothing qualified only because prices failed to load, say so.
+            if scan.checked == 0 and scan.failed:
+                headline = "No position yet, and no prices could be loaded today."
+            else:
+                headline = "No position yet, and no watchlist name qualifies today."
             return Decision(
                 action="BUY_FIRST",
                 message=(
-                    f"No position yet, and no watchlist name qualifies today.\n"
+                    f"{headline}\n"
                     f"Add cash (£{daily:.0f}) and wait, or edit config.yaml watchlist.\n"
                     f"Checked:\n{detail}"
                 ),
@@ -130,12 +180,13 @@ def decide(cfg: dict, position: Position | None) -> Decision:
             action="BUY_FIRST",
             message=(
                 f"No position yet.\n"
-                f"Buy £{daily:.0f} of {nxt.ticker} (market ~{nxt.close:.2f}).\n"
-                f"Why: {nxt.why}"
+                f"Buy £{daily:.0f} of {scan.best.ticker} (market ~{scan.best.close:.2f}).\n"
+                f"Why: {scan.best.why}"
+                f"{_scan_warning(scan)}"
             ),
-            next_ticker=nxt.ticker,
-            next_price=nxt.close,
-            reason=nxt.why,
+            next_ticker=scan.best.ticker,
+            next_price=scan.best.close,
+            reason=scan.best.why,
         )
 
     # Have a position — check HOLD vs exit
@@ -170,6 +221,7 @@ def decide(cfg: dict, position: Position | None) -> Decision:
                 f"Why hold: {exit_why}\n"
                 f"You can still add today's £{daily:.0f} into {position.ticker}.\n"
                 f"(Share count / entry kept private — check Trading 212.)"
+                f"{_price_note(df)}"
             ),
             position=position,
             current_value=value,
@@ -177,15 +229,25 @@ def decide(cfg: dict, position: Position | None) -> Decision:
         )
 
     # SELL & ROTATE
-    nxt, _notes = pick_next(watchlist, exclude=position.ticker)
-    if nxt is None:
+    scan = pick_next(watchlist, exclude=position.ticker)
+    if scan.best is None:
+        # Distinguish "nothing qualifies" from "couldn't check the watchlist".
+        if scan.checked == 0 and scan.failed:
+            replacement = (
+                "Could not load any replacement candidates (all fetches failed).\n"
+                "Re-run before rotating — don't sell into a blind spot."
+            )
+        else:
+            replacement = "No replacement qualifies right now — you would sell to cash."
         return Decision(
             action="SELL_AND_ROTATE",
             message=(
-                f"Decision: SELL {position.ticker} (then stay in cash — no replacement qualifies)\n"
+                f"Decision: SELL {position.ticker}\n"
                 f"Exit reason: {exit_why}\n"
                 f"Last close: {close:.2f}\n"
+                f"{replacement}\n"
                 f"(Size / £ value kept private — check Trading 212.)"
+                f"{_price_note(df)}"
             ),
             position=position,
             exit_value=value,
@@ -201,15 +263,17 @@ def decide(cfg: dict, position: Position | None) -> Decision:
             f"   Exit reason: {exit_why}\n"
             f"   Last close: {close:.2f}\n"
             f"\n"
-            f"2) BUY {nxt.ticker} with the full proceeds\n"
-            f"   Market ~{nxt.close:.2f}\n"
-            f"   Why: {nxt.why} (best 10-day momentum on the watchlist)\n"
+            f"2) BUY {scan.best.ticker} with the full proceeds\n"
+            f"   Market ~{scan.best.close:.2f}\n"
+            f"   Why: {scan.best.why} (best 10-day momentum on the watchlist)\n"
             f"\n"
             f"(Share counts / £ amounts kept private — check Trading 212.)"
+            f"{_price_note(df)}"
+            f"{_scan_warning(scan)}"
         ),
         position=position,
         exit_value=value,
-        next_ticker=nxt.ticker,
-        next_price=nxt.close,
+        next_ticker=scan.best.ticker,
+        next_price=scan.best.close,
         reason=exit_why,
     )
