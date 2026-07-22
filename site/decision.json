@@ -1,9 +1,11 @@
 {
-  "action": "BUY_FIRST",
-  "message": "No position yet.\nBuy \u00a330 of AAPL (market ~327.74).\nWhy: uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%",
-  "reason": "uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%",
-  "next_ticker": "AAPL",
-  "next_price": 327.739990234375,
-  "position": null,
-  "generated_at": "2026-07-22T06:18:04+00:00"
+  "action": "HOLD",
+  "message": "Decision: HOLD AMZN\nLast close: 247.55\nWhy hold: still above stop and SMA20\nYou can still add today's \u00a330 into AMZN.\n(Share count / entry kept private \u2014 check Trading 212.)",
+  "reason": "still above stop and SMA20",
+  "next_ticker": null,
+  "next_price": null,
+  "position": {
+    "ticker": "AMZN"
+  },
+  "generated_at": "2026-07-22T06:41:26+00:00"
 }

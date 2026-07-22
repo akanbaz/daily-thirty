@@ -1,17 +1,19 @@
 # Today's decision
 
-**BUY (open / first £30)**
+**HOLD**
 
-Updated (UTC): `2026-07-22T06:18:04+00:00`
+Updated (UTC): `2026-07-22T06:41:26+00:00`
 
 ## Position
-No position yet.
+**AMZN** (size private)
 
 ## Details
 ```
-No position yet.
-Buy £30 of AAPL (market ~327.74).
-Why: uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%
+Decision: HOLD AMZN
+Last close: 247.55
+Why hold: still above stop and SMA20
+You can still add today's £30 into AMZN.
+(Share count / entry kept private — check Trading 212.)
 ```
 
 ## Sync / record
