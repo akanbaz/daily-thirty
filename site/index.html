@@ -10,30 +10,32 @@
       margin: 0; font-family: "Segoe UI", system-ui, sans-serif;
       background: #eef2f4; color: #12202a; line-height: 1.5;
     }
-    main { max-width: 42rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    main { max-width: 44rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
     h1 { font-size: 1.75rem; letter-spacing: -0.03em; margin: 0 0 0.25rem; }
-    .sub { color: #475569; margin-bottom: 1.5rem; }
+    .sub { color: #475569; margin-bottom: 1rem; }
     .badge {
       display: inline-block; background: #0f6b5c; color: #fff;
       padding: 0.4rem 0.85rem; border-radius: 999px; font-weight: 700;
       letter-spacing: 0.02em; margin: 0.5rem 0 1rem;
     }
     .card {
-      background: #fff; border-radius: 8px; padding: 1.25rem 1.35rem;
+      background: #fff; border-radius: 8px; padding: 1.1rem 1.25rem;
       box-shadow: 0 1px 2px rgba(18,32,42,0.06);
       border-left: 4px solid #0f6b5c; margin-bottom: 1rem;
     }
-    pre {
-      white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.95rem; margin: 0;
-    }
-    a.btn {
-      display: inline-block; margin: 0.35rem 0.5rem 0.35rem 0;
-      padding: 0.55rem 0.9rem; background: #12202a; color: #fff;
-      text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem;
-    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }
+    .stat .k { font-size: 0.8rem; color: #64748b; }
+    .stat .v { font-size: 1.15rem; font-weight: 700; }
+    pre { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; margin: 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    th, td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid #e2e8f0; }
+    th { color: #64748b; font-weight: 600; font-size: 0.85rem; }
+    .tablewrap { overflow-x: auto; }
+    a.btn { display: inline-block; margin: 0.35rem 0.5rem 0.35rem 0; padding: 0.55rem 0.9rem;
+      background: #12202a; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem; }
     a.btn.secondary { background: #fff; color: #12202a; border: 1px solid #cbd5e1; }
     .meta { font-size: 0.85rem; color: #64748b; }
+    .warn { color: #b45309; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -41,27 +43,35 @@
     <h1>Daily Thirty</h1>
     <p class="sub">£30 a day · one stock · HOLD or SELL &amp; ROTATE</p>
     <div class="badge">HOLD</div>
-    <div class="card">
-      <div class="meta">Position</div>
-      <p><strong>AMZN</strong> <span class="meta">(size private)</span></p>
-    </div>
+    <div class="card"><div class="meta">Your position</div><div class="grid"><div class="stat"><div class="k">Ticker</div><div class="v">AMZN</div></div><div class="stat"><div class="k">Shares</div><div class="v">REDACTED</div></div><div class="stat"><div class="k">Entry</div><div class="v">REDACTED</div></div><div class="stat"><div class="k">Price now</div><div class="v">247.55</div></div><div class="stat"><div class="k">Cost</div><div class="v">£REDACTED</div></div><div class="stat"><div class="k">Value now</div><div class="v">£REDACTED</div></div><div class="stat"><div class="k">Profit / loss</div><div class="v" style="color:#0f6b5c">£REDACTED (+REDACTED)</div></div></div></div>
+    <div class="card"><div class="meta">Signals</div>
+      <p>Close <strong>247.55</strong> · SMA20 243.07 ·
+         SMA50 251.16 · SMA200 234.35</p>
+      <p>Momentum: 10-day <strong>+0.6%</strong> · 5-day +0.0%</p>
+      <p class="meta">Sell if it closes below 243.07 (SMA20) or
+         REDACTED (stop).</p></div>
+    <div class="card"><div class="meta">Watchlist</div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Ticker</th><th>Price</th><th>Qualifies to buy</th><th>10-day</th></tr></thead>
+        <tbody><tr><td>AAPL</td><td>327.74</td><td><span style="color:#0f6b5c">✅ yes</span></td><td>+5.5%</td></tr><tr><td>MSFT</td><td>397.75</td><td><span style="color:#b91c1c">❌ no</span></td><td>+2.3%</td></tr><tr><td>AMZN <span class="meta">(held)</span></td><td>247.55</td><td><span style="color:#b91c1c">❌ no</span></td><td>+0.6%</td></tr><tr><td>AMD</td><td>544.43</td><td><span style="color:#0f6b5c">✅ yes</span></td><td>+5.5%</td></tr></tbody>
+      </table></div></div>
     <div class="card">
       <div class="meta">Details</div>
       <pre>Decision: HOLD AMZN
 Last close: 247.55
 Why hold: still above stop and SMA20
-You can still add today&#x27;s £30 into AMZN.
-(Share count / entry kept private — check Trading 212.)</pre>
+You can still add today&#x27;s £30 into AMZN.</pre>
     </div>
-    <p class="meta">Computed on GitHub Actions · UTC 2026-07-22T10:18:40+00:00</p>
+    <p class="meta">Computed on GitHub Actions · UTC 2026-07-22T11:11:28+00:00</p>
     <p>
       <a class="btn" href="https://github.com/akanbaz/daily-thirty/actions/workflows/decide.yml">Re-run decision</a>
       <a class="btn secondary" href="https://github.com/akanbaz/daily-thirty/actions/workflows/record-trade.yml">Record buy / sell</a>
       <a class="btn secondary" href="https://github.com/akanbaz/daily-thirty">Repo</a>
     </p>
     <p class="meta">
-      Public repo: API keys stay in Actions secrets; share counts are not published.
-      Sync is read-only from Trading 212 — no orders are placed.
+      This page shows your real position size and profit/loss. The repo is public —
+      make it private if you don't want this visible. Amounts use the stock's price
+      (USD for US listings); your Trading 212 GBP value will differ with the exchange rate.
     </p>
   </main>
 </body>
