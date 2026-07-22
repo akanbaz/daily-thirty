@@ -53,6 +53,36 @@ uv run daily decide --sync
 
 If you hold several names, it picks the largest (by value) that is on the watchlist.
 
+## Order execution (optional, demo-only)
+
+Daily Thirty is **analysis-only** — you place trades manually in Trading 212. An
+optional, heavily-guarded order module exists for testing on the **demo** account.
+It is **not** part of the automated workflow and never runs on its own.
+
+Safety model (all enforced in `safety.py`):
+- **Demo by default.** Order placement uses `T212_EXEC_ENV` (defaults to `demo`),
+  which is separate from the read-only sync's `T212_ENV` — your live *read* sync is
+  untouched.
+- **Dry-run by default.** Without `--send`, an order is validated but nothing is sent.
+- **Size caps.** Orders below £1 or above £60 (override with `T212_MAX_ORDER_GBP`, hard
+  ceiling £500) are refused.
+- **Live is opt-in only.** Placing real orders requires the exact env var
+  `T212_ALLOW_LIVE=I_UNDERSTAND_THIS_IS_REAL_MONEY`. Anything else stays on demo.
+- **Errors are caught**, never crash — auth/permission/rate-limit are reported cleanly.
+
+```bash
+export T212_API_KEY=...        # same key/secret as read-only sync
+export T212_API_SECRET=...
+export T212_EXEC_ENV=demo      # order placement target (default: demo)
+
+uv run daily trade AAPL_US_EQ 0.1 30            # dry run — validates, sends nothing
+uv run daily trade AAPL_US_EQ 0.1 30 --send     # submits to the DEMO account
+```
+
+> Env var names in this repo are `T212_API_KEY` / `T212_API_SECRET` (equivalent to
+> `TRADING212_API_KEY` / `TRADING212_API_SECRET`). Store them only as GitHub Actions
+> secrets or local shell exports — never in files.
+
 ## Record a trade (optional)
 Still available for a one-off fill in Actions; holdings are **not** committed to git.
 Prefer Trading 212 sync for an ongoing position.
