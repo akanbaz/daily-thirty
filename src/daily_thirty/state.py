@@ -44,6 +44,21 @@ def load_position() -> Position | None:
     )
 
 
+def record_buy(
+    existing: Position | None,
+    ticker: str,
+    shares: float,
+    fill_price: float,
+) -> Position:
+    """Return the new position after a buy, averaging in if same ticker."""
+    ticker = ticker.upper()
+    if existing and existing.ticker == ticker:
+        total_shares = existing.shares + shares
+        avg = (existing.shares * existing.entry_price + shares * fill_price) / total_shares
+        return Position(ticker=ticker, shares=total_shares, entry_price=avg)
+    return Position(ticker=ticker, shares=shares, entry_price=fill_price)
+
+
 def save_position(pos: Position | None) -> None:
     path = position_path()
     if pos is None:

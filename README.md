@@ -16,12 +16,13 @@ Also always available in-repo:
 
 > Private repos: GitHub Pages needs **GitHub Pro** (or make the repo public) for a public `github.io` site. Collaborators can still open `DECISION.md` and Actions summaries.
 
-## What happens each weekday
+## What happens when you run it
+You trigger it yourself — there is no scheduler. Each run:
 1. Actions fetches prices and applies your rules.
 2. Publishes `site/index.html` + updates `DECISION.md`.
 3. Pages serves the UI.
 
-Manual re-run: [Actions → Decide → Run workflow](https://github.com/akanbaz/daily-thirty/actions/workflows/decide.yml)
+Run it: [Actions → Decide → Run workflow](https://github.com/akanbaz/daily-thirty/actions/workflows/decide.yml)
 
 ## Privacy (public repo)
 

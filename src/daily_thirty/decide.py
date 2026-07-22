@@ -29,17 +29,17 @@ class Decision:
     reason: str | None = None
 
 
-def _latest_row(df: pd.DataFrame) -> pd.Series | None:
+def _enriched_last(df: pd.DataFrame) -> pd.Series | None:
+    """Latest day with indicators attached, or None if there's no price data."""
     if df.empty:
         return None
-    enriched = add_indicators(df)
-    row = enriched.iloc[-1]
-    if pd.isna(row.get("sma200")):
-        return None
-    return row
+    return add_indicators(df).iloc[-1]
 
 
 def is_eligible(row: pd.Series) -> tuple[bool, str]:
+    # Buying rules need the long trend, so we need ~200 days of history.
+    if pd.isna(row.get("sma200")):
+        return False, "not enough price history yet (need ~200 days)"
     close = float(row["close"])
     if not (close > float(row["sma50"]) and close > float(row["sma200"])):
         return False, "not in uptrend (need price > SMA50 and SMA200)"
@@ -47,8 +47,8 @@ def is_eligible(row: pd.Series) -> tuple[bool, str]:
     if ret_10 <= 0:
         return False, "10-day momentum not positive"
     ret_5 = float(row["ret_5"]) if pd.notna(row["ret_5"]) else 0.0
-    if ret_5 >= 0.15:
-        return False, "up 15%+ in 5 days (overextended)"
+    if ret_5 > 0.15:
+        return False, "up more than 15% in 5 days (overextended)"
     return True, (
         f"uptrend (above SMA50 & SMA200), "
         f"10d momentum {ret_10:+.1%}, 5d move {ret_5:+.1%}"
@@ -88,9 +88,9 @@ def pick_next(
                 err = "rate-limited (Yahoo 429) — need committed cache"
             notes.append(f"{ticker}: fetch failed ({err})")
             continue
-        row = _latest_row(df)
+        row = _enriched_last(df)
         if row is None:
-            notes.append(f"{ticker}: not enough history")
+            notes.append(f"{ticker}: no price data")
             continue
         ok, why = is_eligible(row)
         if not ok:
@@ -147,11 +147,13 @@ def decide(cfg: dict, position: Position | None) -> Decision:
             message=f"Could not fetch {position.ticker}: {exc}\nTry again later.",
             position=position,
         )
-    row = _latest_row(df)
-    if row is None:
+    row = _enriched_last(df)
+    # The HOLD/SELL rules only need entry price and SMA20 (20 days), so we can
+    # decide even for a stock that doesn't yet have the 200 days buying needs.
+    if row is None or pd.isna(row.get("sma20")):
         return Decision(
             action="HOLD",
-            message=f"Not enough price history for {position.ticker} yet. HOLD for now.",
+            message=f"Not enough price history for {position.ticker} yet (need ~20 days). HOLD for now.",
             position=position,
         )
 
