@@ -68,9 +68,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin master
           git add DECISION.md site/index.html site/decision.json cache/*.parquet || true
           git add -u position.json || true
-          git pull --rebase origin master
           git diff --staged --quiet || git commit -m "chore: record ${{ inputs.action }} and refresh decision"
           git push
 
