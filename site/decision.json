@@ -1,11 +1,11 @@
 {
   "action": "BUY_FIRST",
-  "message": "No position yet.\nBuy \u00a330 of AAPL (about 0.0915 shares at ~327.74).\nWhy: uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%\nAfter the trade:  daily bought AAPL <shares> <fill_price>",
-  "reason": "uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%",
+  "message": "No position yet, and no watchlist name qualifies today.\nAdd cash (\u00a330) and wait, or edit config.yaml watchlist.\nChecked:\n  - JNJ: fetch failed (Client error '429 Too Many Requests' for url 'https://query2.finance.yahoo.com/v8/finance/chart/JNJ?interval=1d&period1=1721624620&period2=1784696620'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429)\n  - PG: fetch failed (Client error '429 Too Many Requests' for url 'https://query2.finance.yahoo.com/v8/finance/chart/PG?interval=1d&period1=1721624624&period2=1784696624'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429)\n  - HD: fetch failed (Client error '429 Too Many Requests' for url 'https://query2.finance.yahoo.com/v8/finance/chart/HD?interval=1d&period1=1721624628&period2=1784696628'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429)\n  - COST: fetch failed (Client error '429 Too Many Requests' for url 'https://query2.finance.yahoo.com/v8/finance/chart/COST?interval=1d&period1=1721624632&period2=1784696632'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429)\n  - NFLX: fetch failed (Client error '429 Too Many Requests' for url 'https://query2.finance.yahoo.com/v8/finance/chart/NFLX?interval=1d&period1=1721624636&period2=1784696636'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429)\n  - AMD: fetch failed (Client error '429 Too Many Requests' for url 'https://query2.finance.yahoo.com/v8/finance/chart/AMD?interval=1d&period1=1721624640&period2=1784696640'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429)\n  - CRM: fetch failed (Client error '429 Too Many Requests' for url 'https://query2.finance.yahoo.com/v8/finance/chart/CRM?interval=1d&period1=1721624644&period2=1784696644'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429)\n  - ORCL: fetch failed (Client error '429 Too Many Requests' for url 'https://query2.finance.yahoo.com/v8/finance/chart/ORCL?interval=1d&period1=1721624648&period2=1784696648'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429)",
+  "reason": null,
   "current_value": null,
   "exit_value": null,
-  "next_ticker": "AAPL",
-  "next_price": 327.739990234375,
+  "next_ticker": null,
+  "next_price": null,
   "position": null,
-  "generated_at": "2026-07-22T05:00:24+00:00"
+  "generated_at": "2026-07-22T05:04:12+00:00"
 }
