@@ -4,3 +4,7 @@ __pycache__/
 dist/
 *.egg-info/
 .pytest_cache/
+
+# Private holdings — never commit (public repo)
+position.json
+

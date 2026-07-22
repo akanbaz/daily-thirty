@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
@@ -11,15 +10,15 @@ from daily_thirty.state import Position
 
 
 def decision_to_dict(d: Decision, pos: Position | None) -> dict:
+    """Public payload — ticker only, no shares / entry / £ size."""
     return {
         "action": d.action,
         "message": d.message,
         "reason": d.reason,
-        "current_value": d.current_value,
-        "exit_value": d.exit_value,
         "next_ticker": d.next_ticker,
         "next_price": d.next_price,
-        "position": asdict(pos) if pos else None,
+        # Intentionally omit shares, entry, current_value, exit_value
+        "position": {"ticker": pos.ticker} if pos else None,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
@@ -54,9 +53,7 @@ def _markdown(payload: dict, repo_url: str) -> str:
     pos = payload.get("position")
     pos_line = "No position yet."
     if pos:
-        pos_line = (
-            f"**{pos['ticker']}** · {pos['shares']:.6f} shares · entry {pos['entry_price']:.2f}"
-        )
+        pos_line = f"**{pos['ticker']}** (size private)"
     return f"""# Today's decision
 
 **{_action_label(payload['action'])}**
@@ -71,10 +68,10 @@ Updated (UTC): `{payload['generated_at']}`
 {payload['message']}
 ```
 
-## Record a trade (runs on GitHub)
-- [Record a buy]({repo_url}/actions/workflows/record-trade.yml) → Run workflow
-- [Record a sell]({repo_url}/actions/workflows/record-trade.yml) → Run workflow
-- [Re-run decision]({repo_url}/actions/workflows/decide.yml) → Run workflow
+## Sync / record
+- Position syncs from Trading 212 when secrets are set (read-only; not committed).
+- [Re-run decision]({repo_url}/actions/workflows/decide.yml)
+- [Record trade]({repo_url}/actions/workflows/record-trade.yml) (optional; does not commit holdings)
 """
 
 
@@ -88,10 +85,7 @@ def _html(payload: dict, repo_url: str) -> str:
     }.get(action, "#334155")
     pos = payload.get("position")
     if pos:
-        pos_html = (
-            f"<strong>{escape(pos['ticker'])}</strong> · "
-            f"{pos['shares']:.6f} shares · entry {pos['entry_price']:.2f}"
-        )
+        pos_html = f"<strong>{escape(pos['ticker'])}</strong> <span class=\"meta\">(size private)</span>"
     else:
         pos_html = "No position yet."
 
@@ -153,14 +147,13 @@ def _html(payload: dict, repo_url: str) -> str:
     </div>
     <p class="meta">Computed on GitHub Actions · UTC {when}</p>
     <p>
-      <a class="btn" href="{buy_url}">Record buy / sell</a>
-      <a class="btn secondary" href="{decide_url}">Re-run decision</a>
+      <a class="btn" href="{decide_url}">Re-run decision</a>
+      <a class="btn secondary" href="{buy_url}">Record buy / sell</a>
       <a class="btn secondary" href="{repo_url}">Repo</a>
     </p>
     <p class="meta">
-      Position can sync read-only from Trading 212 (repo secrets
-      <code>T212_API_KEY</code> / <code>T212_API_SECRET</code>), or record fills via
-      <strong>Actions → Record trade</strong>. No orders are placed by this app.
+      Public repo: API keys stay in Actions secrets; share counts are not published.
+      Sync is read-only from Trading 212 — no orders are placed.
     </p>
   </main>
 </body>

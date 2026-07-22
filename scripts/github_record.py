@@ -25,7 +25,7 @@ def main() -> None:
         pos = load_position()
         if pos is None:
             raise SystemExit("No position to sell.")
-        print(f"Sold {pos.shares} {pos.ticker} @ {args.price}")
+        print(f"Sold {pos.ticker} (size private) @ {args.price}")
         save_position(None)
     else:
         ticker = args.ticker.upper().strip()
@@ -39,7 +39,7 @@ def main() -> None:
         else:
             pos = Position(ticker=ticker, shares=args.shares, entry_price=args.price)
         save_position(pos)
-        print(f"Saved {pos.shares} × {pos.ticker} @ {pos.entry_price}")
+        print(f"Saved {pos.ticker} (size private)")
 
     cfg = load_config(root / "config.yaml")
     pos = load_position()

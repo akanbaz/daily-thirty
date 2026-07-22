@@ -23,9 +23,15 @@ Also always available in-repo:
 
 Manual re-run: [Actions → Decide → Run workflow](https://github.com/akanbaz/daily-thirty/actions/workflows/decide.yml)
 
+## Privacy (public repo)
+
+- **API keys:** store only as GitHub Actions secrets — never in files.
+- **`position.json`:** gitignored; not committed. Decide syncs from Trading 212 each run when secrets are set.
+- **Public UI:** shows action + ticker + reasons; **not** share counts, entry, or £ position size.
+
 ## Trading 212 sync (read-only)
 
-The app can **read** your open position from Trading 212 and write `position.json`.
+The app can **read** your open position from Trading 212 into a local `position.json` for that run.
 It does **not** place buys or sells.
 
 1. In Trading 212: **Settings → API (Beta)** → create a key with **positions read** only (Invest or Stocks ISA).
@@ -46,12 +52,9 @@ uv run daily decide --sync
 
 If you hold several names, it picks the largest (by value) that is on the watchlist.
 
-## Record a trade (also on GitHub)
-Still available if you prefer manual fills:
-1. Open [Record trade](https://github.com/akanbaz/daily-thirty/actions/workflows/record-trade.yml)
-2. **Run workflow**
-3. Choose `bought` or `sold`, enter fill details
-4. Site refreshes automatically
+## Record a trade (optional)
+Still available for a one-off fill in Actions; holdings are **not** committed to git.
+Prefer Trading 212 sync for an ongoing position.
 
 ## Rules
 - Uptrend: price > SMA50 and SMA200  

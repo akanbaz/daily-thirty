@@ -1,11 +1,9 @@
 {
   "action": "BUY_FIRST",
-  "message": "No position yet.\nBuy \u00a330 of AAPL (about 0.0915 shares at ~327.74).\nWhy: uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%\nAfter the trade:  daily bought AAPL <shares> <fill_price>",
+  "message": "No position yet.\nBuy \u00a330 of AAPL (market ~327.74).\nWhy: uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%",
   "reason": "uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%",
-  "current_value": null,
-  "exit_value": null,
   "next_ticker": "AAPL",
   "next_price": 327.739990234375,
   "position": null,
-  "generated_at": "2026-07-22T06:02:37+00:00"
+  "generated_at": "2026-07-22T06:18:04+00:00"
 }

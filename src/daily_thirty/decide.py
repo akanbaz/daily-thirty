@@ -130,10 +130,8 @@ def decide(cfg: dict, position: Position | None) -> Decision:
             action="BUY_FIRST",
             message=(
                 f"No position yet.\n"
-                f"Buy £{daily:.0f} of {nxt.ticker} (about {daily / nxt.close:.4f} shares "
-                f"at ~{nxt.close:.2f}).\n"
-                f"Why: {nxt.why}\n"
-                f"After the trade:  daily bought {nxt.ticker} <shares> <fill_price>"
+                f"Buy £{daily:.0f} of {nxt.ticker} (market ~{nxt.close:.2f}).\n"
+                f"Why: {nxt.why}"
             ),
             next_ticker=nxt.ticker,
             next_price=nxt.close,
@@ -162,17 +160,14 @@ def decide(cfg: dict, position: Position | None) -> Decision:
     exit_now, exit_why = should_exit(row, position.entry_price, stop_pct)
 
     if not exit_now:
-        pnl = value / position.cost - 1.0 if position.cost else 0.0
         return Decision(
             action="HOLD",
             message=(
                 f"Decision: HOLD {position.ticker}\n"
-                f"Shares: {position.shares:.6f}\n"
-                f"Entry: {position.entry_price:.2f}\n"
                 f"Last close: {close:.2f}\n"
-                f"Current value: £{value:.2f} ({pnl:+.1%} vs entry)\n"
                 f"Why hold: {exit_why}\n"
-                f"You can still add today's £{daily:.0f} into {position.ticker}."
+                f"You can still add today's £{daily:.0f} into {position.ticker}.\n"
+                f"(Share count / entry kept private — check Trading 212.)"
             ),
             position=position,
             current_value=value,
@@ -187,17 +182,14 @@ def decide(cfg: dict, position: Position | None) -> Decision:
             message=(
                 f"Decision: SELL {position.ticker} (then stay in cash — no replacement qualifies)\n"
                 f"Exit reason: {exit_why}\n"
-                f"Shares: {position.shares:.6f}\n"
                 f"Last close: {close:.2f}\n"
-                f"Exit value (approx): £{value:.2f}\n"
-                f"After selling:  daily sold <fill_price>"
+                f"(Size / £ value kept private — check Trading 212.)"
             ),
             position=position,
             exit_value=value,
             reason=exit_why,
         )
 
-    shares_next = value / nxt.close if nxt.close else 0.0
     return Decision(
         action="SELL_AND_ROTATE",
         message=(
@@ -205,17 +197,13 @@ def decide(cfg: dict, position: Position | None) -> Decision:
             f"\n"
             f"1) SELL {position.ticker}\n"
             f"   Exit reason: {exit_why}\n"
-            f"   Shares: {position.shares:.6f}\n"
             f"   Last close: {close:.2f}\n"
-            f"   Exit value (approx): £{value:.2f}\n"
             f"\n"
-            f"2) BUY {nxt.ticker} with that full amount (~£{value:.2f})\n"
-            f"   About {shares_next:.4f} shares at ~{nxt.close:.2f}\n"
-            f"   Why chosen: {nxt.why} (best 10-day momentum on the watchlist)\n"
+            f"2) BUY {nxt.ticker} with the full proceeds\n"
+            f"   Market ~{nxt.close:.2f}\n"
+            f"   Why: {nxt.why} (best 10-day momentum on the watchlist)\n"
             f"\n"
-            f"After trades:\n"
-            f"  daily sold <sell_fill_price>\n"
-            f"  daily bought {nxt.ticker} <shares> <buy_fill_price>"
+            f"(Share counts / £ amounts kept private — check Trading 212.)"
         ),
         position=position,
         exit_value=value,

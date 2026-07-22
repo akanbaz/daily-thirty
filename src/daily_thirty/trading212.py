@@ -145,12 +145,12 @@ def sync_position(
             message=f"Trading 212: no open position (synced {when}).",
             raw_count=len(rows),
         )
+    # Do not print shares/entry — public Actions logs are visible on a public repo
     return SyncResult(
         position=pos,
         message=(
-            f"Trading 212 sync ({when}): "
-            f"{pos.shares:.6f} × {pos.ticker} @ {pos.entry_price:.4f} "
-            f"(from {len(rows)} open position(s))."
+            f"Trading 212 sync ({when}): holding {pos.ticker} "
+            f"(from {len(rows)} open position(s); size private)."
         ),
         raw_count=len(rows),
     )
