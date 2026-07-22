@@ -134,6 +134,42 @@ def cmd_sold(
     save_position(None)
 
 
+@app.command("trade")
+def cmd_trade(
+    t212_ticker: str = typer.Argument(..., help="Trading 212 instrument ticker, e.g. AAPL_US_EQ"),
+    quantity: float = typer.Argument(..., help="Shares to buy (fractional OK)"),
+    est_value: float = typer.Argument(..., help="Estimated £ value (checked against size cap)"),
+    send: bool = typer.Option(
+        False,
+        "--send",
+        help="Actually submit to the DEMO account (default is dry-run: nothing sent).",
+    ),
+) -> None:
+    """Optional order placement — DEMO-only, dry-run by default (analysis tool stays manual).
+
+    Guardrails: refuses the live account unless you set an explicit opt-in env var,
+    caps the order size, and catches API errors. See README 'Order execution'.
+    """
+    from daily_thirty import safety
+    from daily_thirty.execute import place_market_order
+
+    safety.setup_logging()
+    env = safety.execution_env()
+    if send and not safety.is_demo(env) and not safety.live_execution_opted_in():
+        console.print(
+            f"[bold red]Blocked:[/bold red] execution env is '{env}'. This is demo-only.\n"
+            "Set [bold]T212_EXEC_ENV=demo[/bold] to test order placement safely."
+        )
+        raise typer.Exit(1)
+
+    result = place_market_order(t212_ticker, quantity, est_value_gbp=est_value, dry_run=not send)
+    tag = "DRY RUN" if result.dry_run else f"SENT ({result.env})"
+    colour = "green" if result.ok else "red"
+    console.print(f"[bold {colour}]{tag}[/bold {colour}] — {result.detail}")
+    if result.request:
+        console.print(f"Order: {result.request}")
+
+
 @app.command("reset")
 def cmd_reset() -> None:
     """Clear saved position."""
