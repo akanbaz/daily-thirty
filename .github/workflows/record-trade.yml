@@ -64,20 +64,24 @@ jobs:
             cat DECISION.md
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Commit position + site + cache
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin master
-          git add DECISION.md site/index.html site/decision.json cache/*.parquet || true
-          git add -u position.json || true
-          git diff --staged --quiet || git commit -m "chore: record ${{ inputs.action }} and refresh decision"
-          git push
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
+
+      - name: Commit position + site + cache
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DECISION.md site/index.html site/decision.json cache/*.parquet || true
+          git add -u position.json || true
+          if git diff --staged --quiet; then
+            echo "Nothing to commit"
+          else
+            git commit -m "chore: record ${{ inputs.action }} and refresh decision"
+            git pull --rebase origin master
+            git push
+          fi
 
   deploy:
     needs: record
