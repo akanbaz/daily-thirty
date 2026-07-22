@@ -16,7 +16,7 @@
     "ret_10": 0.0063826626208978166,
     "ret_5": 0.00024242416769193476,
     "stale": false,
-    "age_days": 7.073304995342538e-05
+    "age_days": 6.710048902917792e-05
   },
   "watchlist": [
     {
@@ -48,6 +48,12 @@
       "is_held": false
     }
   ],
-  "generated_at": "2026-07-22T11:19:20+00:00",
-  "financials": "hidden"
+  "generated_at": "2026-07-22T11:22:29+00:00",
+  "financials": "locked",
+  "encrypted": {
+    "salt": "4K9j9u/DBgAVvr6H+UX/KA==",
+    "iv": "m/M8wfoMlesEwKAj",
+    "ct": "vXqIPhof8Puvbv0RTwpWaLHqVYXHUzx+tiEbo8AgfkuqnvhfY6XyuC0F6qZqDgag9d7+4caM7zgli2C8sRoJ58QBMkuxY3ett/6q2lcmZggFwzPCVERLEjidbboPdJEJ+N6rjxgLq0VHwI445KYu8OQFtGMG/uIJUbeYGFgf2Wsvm42Wj+ekgEkFCzvL1Np45rWbR+VDE5mp5HVIVJ7BiAbXkLoSJDTapWg+jDHNeR294jy7MZoiXqrXsYsGrHxvr0/KrOQ/RDgrV1Be3hJcrYxvFOJoZG38Ml/7pCzLbUFcZpcuEfDF7uqhd+PtTvS22sfJaKg=",
+    "iter": 200000
+  }
 }

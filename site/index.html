@@ -38,7 +38,53 @@
     <p class="sub">£30 a day · one stock · HOLD or SELL &amp; ROTATE</p>
     <div class="badge">HOLD</div>
     <div class="card"><div class="meta">Position</div><p><strong>AMZN</strong></p></div>
-    <div class="card"><div class="meta">Financials 🔒</div><p class="meta">Not published — no site passphrase configured (set the <code>SITE_PASSPHRASE</code> Actions secret).</p></div>
+    <div class="card" id="fin">
+      <div class="meta">Financials 🔒</div>
+      <div id="locked">
+        <p class="meta">Private — enter your passphrase to view size, value &amp; P/L.</p>
+        <div class="row">
+          <input id="pass" type="password" placeholder="passphrase"
+                 autocomplete="off" onkeydown="if(event.key==='Enter')unlock()" />
+          <button class="btn" onclick="unlock()">Unlock</button>
+        </div>
+        <p id="err" class="warn" style="display:none">Wrong passphrase — try again.</p>
+      </div>
+      <div id="unlocked" style="display:none"></div>
+    </div>
+    <script>
+      const ENC = {"salt": "4K9j9u/DBgAVvr6H+UX/KA==", "iv": "m/M8wfoMlesEwKAj", "ct": "vXqIPhof8Puvbv0RTwpWaLHqVYXHUzx+tiEbo8AgfkuqnvhfY6XyuC0F6qZqDgag9d7+4caM7zgli2C8sRoJ58QBMkuxY3ett/6q2lcmZggFwzPCVERLEjidbboPdJEJ+N6rjxgLq0VHwI445KYu8OQFtGMG/uIJUbeYGFgf2Wsvm42Wj+ekgEkFCzvL1Np45rWbR+VDE5mp5HVIVJ7BiAbXkLoSJDTapWg+jDHNeR294jy7MZoiXqrXsYsGrHxvr0/KrOQ/RDgrV1Be3hJcrYxvFOJoZG38Ml/7pCzLbUFcZpcuEfDF7uqhd+PtTvS22sfJaKg=", "iter": 200000};
+      const b = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+      const money = x => (x==null? 'n/a' : '£'+Number(x).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
+      const num = (x,n=2) => (x==null? 'n/a' : Number(x).toLocaleString(undefined,{minimumFractionDigits:n,maximumFractionDigits:n}));
+      const pct = x => (x==null? 'n/a' : (x>=0?'+':'')+(x*100).toFixed(1)+'%');
+      async function unlock() {
+        const pass = document.getElementById('pass').value;
+        const err = document.getElementById('err');
+        try {
+          const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+          const key = await crypto.subtle.deriveKey(
+            {name:'PBKDF2', salt:b(ENC.salt), iterations:ENC.iter, hash:'SHA-256'},
+            baseKey, {name:'AES-GCM', length:256}, false, ['decrypt']);
+          const ptBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv:b(ENC.iv)}, key, b(ENC.ct));
+          const f = JSON.parse(new TextDecoder().decode(ptBuf));
+          const pnlColor = f.pnl >= 0 ? '#0f6b5c' : '#b91c1c';
+          document.getElementById('unlocked').innerHTML =
+            '<div class="grid">' +
+            '<div class="stat"><div class="k">Shares</div><div class="v">'+num(f.shares,6)+'</div></div>' +
+            '<div class="stat"><div class="k">Entry</div><div class="v">'+num(f.entry_price)+'</div></div>' +
+            '<div class="stat"><div class="k">Price now</div><div class="v">'+num(f.current_price)+'</div></div>' +
+            '<div class="stat"><div class="k">Cost</div><div class="v">'+money(f.cost)+'</div></div>' +
+            '<div class="stat"><div class="k">Value now</div><div class="v">'+money(f.value)+'</div></div>' +
+            '<div class="stat"><div class="k">Profit / loss</div><div class="v" style="color:'+pnlColor+'">'+money(f.pnl)+' ('+pct(f.pnl_pct)+')</div></div>' +
+            '</div>' +
+            '<p class="meta">Also sells if it closes below '+num(f.stop_level)+' (your entry stop).</p>';
+          document.getElementById('locked').style.display = 'none';
+          document.getElementById('unlocked').style.display = 'block';
+        } catch (e) {
+          err.style.display = 'block';
+        }
+      }
+    </script>
     <div class="card"><div class="meta">Signals</div>
       <p>Close <strong>247.55</strong> · SMA20 243.07 ·
          SMA50 251.16 · SMA200 234.35</p>
@@ -55,7 +101,7 @@ Last close: 247.55
 Why hold: still above stop and SMA20
 You can still add today&#x27;s £30 into AMZN.</pre>
     </div>
-    <p class="meta">Computed on GitHub Actions · UTC 2026-07-22T11:19:20+00:00</p>
+    <p class="meta">Computed on GitHub Actions · UTC 2026-07-22T11:22:29+00:00</p>
     <p>
       <a class="btn" href="https://github.com/akanbaz/daily-thirty/actions/workflows/decide.yml">Re-run decision</a>
       <a class="btn secondary" href="https://github.com/akanbaz/daily-thirty/actions/workflows/record-trade.yml">Record buy / sell</a>
