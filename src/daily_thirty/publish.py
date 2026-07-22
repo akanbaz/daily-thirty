@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 
 import pandas as pd
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from daily_thirty.decide import Decision, is_eligible
 from daily_thirty.prices import add_indicators, fetch_daily
 from daily_thirty.state import Position
+
+# Name of the GitHub Actions secret / env var holding the site passphrase.
+PASSPHRASE_ENV = "SITE_PASSPHRASE"
+PBKDF2_ITERATIONS = 200_000
 
 
 def _num(x: float | None, nd: int = 2) -> str:
@@ -22,6 +30,16 @@ def _pct(x: float | None) -> str:
     if x is None or (isinstance(x, float) and pd.isna(x)):
         return "n/a"
     return f"{x:+.1%}"
+
+
+def _encrypt_secret(data: dict, passphrase: str) -> dict:
+    """AES-256-GCM with a PBKDF2 key. Only the ciphertext is ever published."""
+    salt = os.urandom(16)
+    iv = os.urandom(12)
+    key = hashlib.pbkdf2_hmac("sha256", passphrase.encode(), salt, PBKDF2_ITERATIONS, 32)
+    ct = AESGCM(key).encrypt(iv, json.dumps(data).encode(), None)
+    b64 = lambda b: base64.b64encode(b).decode()  # noqa: E731
+    return {"salt": b64(salt), "iv": b64(iv), "ct": b64(ct), "iter": PBKDF2_ITERATIONS}
 
 
 def _held_status(position: Position, stop_pct: float) -> dict | None:
@@ -65,46 +83,36 @@ def _watchlist_status(watchlist: list[str], held: str | None) -> list[dict]:
         try:
             df = fetch_daily(t)
         except Exception:
-            rows.append({"ticker": t, "close": None, "qualifies": None,
-                         "ret_10": None, "note": "no data", "is_held": t == held})
-            continue
+            df = pd.DataFrame()
         if df.empty:
             rows.append({"ticker": t, "close": None, "qualifies": None,
-                         "ret_10": None, "note": "no data", "is_held": t == held})
+                         "ret_10": None, "is_held": t == held})
             continue
         r = add_indicators(df).iloc[-1]
-        ok, why = is_eligible(r)
+        ok, _why = is_eligible(r)
         rows.append({
             "ticker": t,
             "close": float(r["close"]),
             "qualifies": ok,
             "ret_10": float(r["ret_10"]) if pd.notna(r["ret_10"]) else None,
-            "note": why,
             "is_held": t == held,
         })
     return rows
 
 
 def build_payload(decision: Decision, position: Position | None, cfg: dict) -> dict:
-    """Full status payload — now includes financials (site is intentionally detailed)."""
+    """Public payload. Money numbers go into an encrypted blob, not the clear text."""
     stop_pct = float(cfg.get("stop_pct", 0.04))
     watchlist = [str(t).upper() for t in cfg.get("watchlist", [])]
     held = position.ticker if position else None
 
     status = _held_status(position, stop_pct) if position else None
-    pos_block = None
+
+    # Clear (public) blocks — nothing that reveals size, entry, value, or P/L.
+    # Note: the entry-based stop level is left OUT because it would reveal entry.
     ind_block = None
+    secret = None
     if position and status:
-        pos_block = {
-            "ticker": position.ticker,
-            "shares": status["shares"],
-            "entry_price": status["entry_price"],
-            "current_price": status["current_price"],
-            "cost": status["cost"],
-            "value": status["value"],
-            "pnl": status["pnl"],
-            "pnl_pct": status["pnl_pct"],
-        }
         ind_block = {
             "close": status["close"],
             "sma20": status["sma20"],
@@ -112,27 +120,43 @@ def build_payload(decision: Decision, position: Position | None, cfg: dict) -> d
             "sma200": status["sma200"],
             "ret_10": status["ret_10"],
             "ret_5": status["ret_5"],
-            "stop_level": status["stop_level"],
             "stale": status["stale"],
             "age_days": status["age_days"],
         }
-    elif position:
-        pos_block = {"ticker": position.ticker, "shares": position.shares,
-                     "entry_price": position.entry_price, "current_price": None,
-                     "cost": position.cost, "value": None, "pnl": None, "pnl_pct": None}
+        secret = {
+            "shares": status["shares"],
+            "entry_price": status["entry_price"],
+            "current_price": status["current_price"],
+            "cost": status["cost"],
+            "value": status["value"],
+            "pnl": status["pnl"],
+            "pnl_pct": status["pnl_pct"],
+            "stop_level": status["stop_level"],
+        }
 
-    return {
+    payload: dict = {
         "action": decision.action,
         "label": _action_label(decision.action),
         "message": decision.message,
         "reason": decision.reason,
         "next_ticker": decision.next_ticker,
         "next_price": decision.next_price,
-        "position": pos_block,
+        "position": {"ticker": position.ticker} if position else None,
         "indicators": ind_block,
         "watchlist": _watchlist_status(watchlist, held),
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
+
+    passphrase = os.environ.get(PASSPHRASE_ENV, "").strip()
+    if secret and passphrase:
+        payload["financials"] = "locked"
+        payload["encrypted"] = _encrypt_secret(secret, passphrase)
+    elif secret:
+        # No passphrase configured — publish nothing rather than leak the numbers.
+        payload["financials"] = "hidden"
+    else:
+        payload["financials"] = "none"
+    return payload
 
 
 def write_outputs(
@@ -165,40 +189,26 @@ def _action_label(action: str) -> str:
 def _markdown(payload: dict, repo_url: str) -> str:
     pos = payload.get("position")
     ind = payload.get("indicators")
-
     parts = [
-        "# Today's decision",
-        "",
-        f"**{payload['label']}**",
-        "",
-        f"Updated (UTC): `{payload['generated_at']}`",
-        "",
+        "# Today's decision", "",
+        f"**{payload['label']}**", "",
+        f"Updated (UTC): `{payload['generated_at']}`", "",
+        "## Your position", "",
     ]
-
-    parts += ["## Your position", ""]
     if pos:
-        parts += [
-            f"- **Ticker:** {pos['ticker']}",
-            f"- **Shares:** {_num(pos['shares'], 6)}",
-            f"- **Entry price:** {_num(pos['entry_price'])}",
-            f"- **Current price:** {_num(pos['current_price'])}",
-            f"- **Cost:** £{_num(pos['cost'])}",
-            f"- **Value now:** £{_num(pos['value'])}",
-            f"- **Profit / loss:** £{_num(pos['pnl'])} ({_pct(pos['pnl_pct'])})",
-        ]
+        parts.append(f"**{pos['ticker']}** — shares, value & profit/loss are private "
+                     "(unlock on the site with your passphrase).")
     else:
         parts.append("No position yet.")
     parts.append("")
 
     if ind:
         parts += [
-            "## Signals",
-            "",
+            "## Signals", "",
             f"- Close **{_num(ind['close'])}** · SMA20 {_num(ind['sma20'])} · "
             f"SMA50 {_num(ind['sma50'])} · SMA200 {_num(ind['sma200'])}",
             f"- Momentum: 10-day {_pct(ind['ret_10'])} · 5-day {_pct(ind['ret_5'])}",
-            f"- Sell if it closes below **{_num(ind['sma20'])}** (SMA20) or "
-            f"**{_num(ind['stop_level'])}** (stop)",
+            f"- Sell if it closes below **{_num(ind['sma20'])}** (SMA20).",
         ]
         if ind["stale"]:
             parts.append(f"- ⚠️ Prices are cached ~{ind['age_days']:.0f} day(s) old — re-run to refresh.")
@@ -210,33 +220,79 @@ def _markdown(payload: dict, repo_url: str) -> str:
         mark = "✅" if w["qualifies"] else ("❌" if w["qualifies"] is False else "—")
         held = " *(held)*" if w["is_held"] else ""
         parts.append(f"| {w['ticker']}{held} | {_num(w['close'])} | {mark} | {_pct(w['ret_10'])} |")
-    parts.append("")
-
     parts += [
-        "## Details",
-        "```",
-        payload["message"],
-        "```",
-        "",
-        "## Run again",
+        "", "## Details", "```", payload["message"], "```", "",
         f"- [Re-run decision]({repo_url}/actions/workflows/decide.yml)",
-        f"- [Record trade]({repo_url}/actions/workflows/record-trade.yml)",
-        "",
-        "> This page shows your real position size and P/L. The repo is public — "
-        "make it private (Settings → General → Danger Zone) if you don't want this visible.",
-        "",
+        f"- [Record trade]({repo_url}/actions/workflows/record-trade.yml)", "",
+        "> Financials (size / value / P&L) are encrypted and only viewable on the "
+        "site with your passphrase. The repo is public.", "",
     ]
     return "\n".join(parts)
+
+
+def _financials_card_html(payload: dict) -> str:
+    state = payload.get("financials")
+    if state == "locked":
+        enc = json.dumps(payload["encrypted"])
+        return f"""<div class="card" id="fin">
+      <div class="meta">Financials 🔒</div>
+      <div id="locked">
+        <p class="meta">Private — enter your passphrase to view size, value &amp; P/L.</p>
+        <div class="row">
+          <input id="pass" type="password" placeholder="passphrase"
+                 autocomplete="off" onkeydown="if(event.key==='Enter')unlock()" />
+          <button class="btn" onclick="unlock()">Unlock</button>
+        </div>
+        <p id="err" class="warn" style="display:none">Wrong passphrase — try again.</p>
+      </div>
+      <div id="unlocked" style="display:none"></div>
+    </div>
+    <script>
+      const ENC = {enc};
+      const b = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+      const money = x => (x==null? 'n/a' : '£'+Number(x).toLocaleString(undefined,{{minimumFractionDigits:2,maximumFractionDigits:2}}));
+      const num = (x,n=2) => (x==null? 'n/a' : Number(x).toLocaleString(undefined,{{minimumFractionDigits:n,maximumFractionDigits:n}}));
+      const pct = x => (x==null? 'n/a' : (x>=0?'+':'')+(x*100).toFixed(1)+'%');
+      async function unlock() {{
+        const pass = document.getElementById('pass').value;
+        const err = document.getElementById('err');
+        try {{
+          const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+          const key = await crypto.subtle.deriveKey(
+            {{name:'PBKDF2', salt:b(ENC.salt), iterations:ENC.iter, hash:'SHA-256'}},
+            baseKey, {{name:'AES-GCM', length:256}}, false, ['decrypt']);
+          const ptBuf = await crypto.subtle.decrypt({{name:'AES-GCM', iv:b(ENC.iv)}}, key, b(ENC.ct));
+          const f = JSON.parse(new TextDecoder().decode(ptBuf));
+          const pnlColor = f.pnl >= 0 ? '#0f6b5c' : '#b91c1c';
+          document.getElementById('unlocked').innerHTML =
+            '<div class="grid">' +
+            '<div class="stat"><div class="k">Shares</div><div class="v">'+num(f.shares,6)+'</div></div>' +
+            '<div class="stat"><div class="k">Entry</div><div class="v">'+num(f.entry_price)+'</div></div>' +
+            '<div class="stat"><div class="k">Price now</div><div class="v">'+num(f.current_price)+'</div></div>' +
+            '<div class="stat"><div class="k">Cost</div><div class="v">'+money(f.cost)+'</div></div>' +
+            '<div class="stat"><div class="k">Value now</div><div class="v">'+money(f.value)+'</div></div>' +
+            '<div class="stat"><div class="k">Profit / loss</div><div class="v" style="color:'+pnlColor+'">'+money(f.pnl)+' ('+pct(f.pnl_pct)+')</div></div>' +
+            '</div>' +
+            '<p class="meta">Also sells if it closes below '+num(f.stop_level)+' (your entry stop).</p>';
+          document.getElementById('locked').style.display = 'none';
+          document.getElementById('unlocked').style.display = 'block';
+        }} catch (e) {{
+          err.style.display = 'block';
+        }}
+      }}
+    </script>"""
+    if state == "hidden":
+        return ('<div class="card"><div class="meta">Financials 🔒</div>'
+                '<p class="meta">Not published — no site passphrase configured '
+                f'(set the <code>{PASSPHRASE_ENV}</code> Actions secret).</p></div>')
+    return ""
 
 
 def _html(payload: dict, repo_url: str) -> str:
     action = payload["action"]
     label = payload["label"]
-    badge = {
-        "HOLD": "#0f6b5c",
-        "SELL_AND_ROTATE": "#b45309",
-        "BUY_FIRST": "#1d4ed8",
-    }.get(action, "#334155")
+    badge = {"HOLD": "#0f6b5c", "SELL_AND_ROTATE": "#b45309",
+             "BUY_FIRST": "#1d4ed8"}.get(action, "#334155")
     pos = payload.get("position")
     ind = payload.get("indicators")
     when = escape(payload["generated_at"])
@@ -244,33 +300,11 @@ def _html(payload: dict, repo_url: str) -> str:
     decide_url = f"{repo_url}/actions/workflows/decide.yml"
     buy_url = f"{repo_url}/actions/workflows/record-trade.yml"
 
-    # Position financials grid
-    if pos:
-        pnl = pos.get("pnl")
-        pnl_color = "#0f6b5c" if (pnl is not None and pnl >= 0) else "#b91c1c"
-        pnl_txt = f"£{_num(pnl)} ({_pct(pos.get('pnl_pct'))})" if pnl is not None else "n/a"
-        cells = [
-            ("Ticker", escape(pos["ticker"])),
-            ("Shares", _num(pos["shares"], 6)),
-            ("Entry", _num(pos["entry_price"])),
-            ("Price now", _num(pos["current_price"])),
-            ("Cost", f"£{_num(pos['cost'])}"),
-            ("Value now", f"£{_num(pos['value'])}"),
-        ]
-        grid = "".join(
-            f'<div class="stat"><div class="k">{escape(k)}</div>'
-            f'<div class="v">{escape(str(v))}</div></div>'
-            for k, v in cells
-        )
-        grid += (
-            f'<div class="stat"><div class="k">Profit / loss</div>'
-            f'<div class="v" style="color:{pnl_color}">{escape(pnl_txt)}</div></div>'
-        )
-        pos_card = f'<div class="card"><div class="meta">Your position</div><div class="grid">{grid}</div></div>'
-    else:
-        pos_card = '<div class="card"><div class="meta">Your position</div><p>No position yet.</p></div>'
+    pos_line = (f"<strong>{escape(pos['ticker'])}</strong>" if pos else "No position yet.")
+    pos_card = (f'<div class="card"><div class="meta">Position</div><p>{pos_line}</p></div>')
 
-    # Signals card
+    fin_card = _financials_card_html(payload)
+
     sig_card = ""
     if ind:
         stale = ""
@@ -281,10 +315,8 @@ def _html(payload: dict, repo_url: str) -> str:
       <p>Close <strong>{_num(ind['close'])}</strong> · SMA20 {_num(ind['sma20'])} ·
          SMA50 {_num(ind['sma50'])} · SMA200 {_num(ind['sma200'])}</p>
       <p>Momentum: 10-day <strong>{_pct(ind['ret_10'])}</strong> · 5-day {_pct(ind['ret_5'])}</p>
-      <p class="meta">Sell if it closes below {_num(ind['sma20'])} (SMA20) or
-         {_num(ind['stop_level'])} (stop).</p>{stale}</div>"""
+      <p class="meta">Sell if it closes below {_num(ind['sma20'])} (SMA20).</p>{stale}</div>"""
 
-    # Watchlist table
     rows_html = ""
     for w in payload["watchlist"]:
         if w["qualifies"] is True:
@@ -294,15 +326,12 @@ def _html(payload: dict, repo_url: str) -> str:
         else:
             mark = "—"
         held = ' <span class="meta">(held)</span>' if w["is_held"] else ""
-        rows_html += (
-            f"<tr><td>{escape(w['ticker'])}{held}</td><td>{_num(w['close'])}</td>"
-            f"<td>{mark}</td><td>{_pct(w['ret_10'])}</td></tr>"
-        )
+        rows_html += (f"<tr><td>{escape(w['ticker'])}{held}</td><td>{_num(w['close'])}</td>"
+                      f"<td>{mark}</td><td>{_pct(w['ret_10'])}</td></tr>")
     wl_card = f"""<div class="card"><div class="meta">Watchlist</div>
       <div class="tablewrap"><table>
         <thead><tr><th>Ticker</th><th>Price</th><th>Qualifies to buy</th><th>10-day</th></tr></thead>
-        <tbody>{rows_html}</tbody>
-      </table></div></div>"""
+        <tbody>{rows_html}</tbody></table></div></div>"""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -312,32 +341,26 @@ def _html(payload: dict, repo_url: str) -> str:
   <title>Daily Thirty — today's decision</title>
   <style>
     :root {{ color-scheme: light; }}
-    body {{
-      margin: 0; font-family: "Segoe UI", system-ui, sans-serif;
-      background: #eef2f4; color: #12202a; line-height: 1.5;
-    }}
+    body {{ margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: #eef2f4; color: #12202a; line-height: 1.5; }}
     main {{ max-width: 44rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }}
     h1 {{ font-size: 1.75rem; letter-spacing: -0.03em; margin: 0 0 0.25rem; }}
     .sub {{ color: #475569; margin-bottom: 1rem; }}
-    .badge {{
-      display: inline-block; background: {badge}; color: #fff;
-      padding: 0.4rem 0.85rem; border-radius: 999px; font-weight: 700;
-      letter-spacing: 0.02em; margin: 0.5rem 0 1rem;
-    }}
-    .card {{
-      background: #fff; border-radius: 8px; padding: 1.1rem 1.25rem;
-      box-shadow: 0 1px 2px rgba(18,32,42,0.06);
-      border-left: 4px solid {badge}; margin-bottom: 1rem;
-    }}
+    .badge {{ display: inline-block; background: {badge}; color: #fff; padding: 0.4rem 0.85rem;
+      border-radius: 999px; font-weight: 700; letter-spacing: 0.02em; margin: 0.5rem 0 1rem; }}
+    .card {{ background: #fff; border-radius: 8px; padding: 1.1rem 1.25rem;
+      box-shadow: 0 1px 2px rgba(18,32,42,0.06); border-left: 4px solid {badge}; margin-bottom: 1rem; }}
     .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }}
     .stat .k {{ font-size: 0.8rem; color: #64748b; }}
     .stat .v {{ font-size: 1.15rem; font-weight: 700; }}
+    .row {{ display: flex; gap: 0.5rem; margin-top: 0.5rem; }}
+    input {{ flex: 1; padding: 0.5rem 0.7rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; }}
+    button.btn {{ border: none; cursor: pointer; }}
     pre {{ white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; margin: 0; }}
     table {{ width: 100%; border-collapse: collapse; font-size: 0.95rem; }}
     th, td {{ text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid #e2e8f0; }}
     th {{ color: #64748b; font-weight: 600; font-size: 0.85rem; }}
     .tablewrap {{ overflow-x: auto; }}
-    a.btn {{ display: inline-block; margin: 0.35rem 0.5rem 0.35rem 0; padding: 0.55rem 0.9rem;
+    a.btn, button.btn {{ display: inline-block; margin: 0.35rem 0.5rem 0.35rem 0; padding: 0.55rem 0.9rem;
       background: #12202a; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem; }}
     a.btn.secondary {{ background: #fff; color: #12202a; border: 1px solid #cbd5e1; }}
     .meta {{ font-size: 0.85rem; color: #64748b; }}
@@ -350,6 +373,7 @@ def _html(payload: dict, repo_url: str) -> str:
     <p class="sub">£30 a day · one stock · HOLD or SELL &amp; ROTATE</p>
     <div class="badge">{escape(label)}</div>
     {pos_card}
+    {fin_card}
     {sig_card}
     {wl_card}
     <div class="card">
@@ -363,9 +387,8 @@ def _html(payload: dict, repo_url: str) -> str:
       <a class="btn secondary" href="{repo_url}">Repo</a>
     </p>
     <p class="meta">
-      This page shows your real position size and profit/loss. The repo is public —
-      make it private if you don't want this visible. Amounts use the stock's price
-      (USD for US listings); your Trading 212 GBP value will differ with the exchange rate.
+      Decision, signals and watchlist are public. Your size, value and profit/loss are
+      AES-encrypted and only readable in your browser after you enter the passphrase.
     </p>
   </main>
 </body>

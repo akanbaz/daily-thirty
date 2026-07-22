@@ -12,6 +12,7 @@ dependencies = [
     "rich>=13.7",
     "pyarrow>=25.0.0",
     "streamlit>=1.59.1",
+    "cryptography>=43.0",
 ]
 
 [project.scripts]
