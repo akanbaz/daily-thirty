@@ -2,17 +2,9 @@ name: Decide
 
 on:
   schedule:
-    # Weekdays ~21:30 Europe/London (20:30 UTC in BST; close enough year-round)
+    # Weekdays ~21:30 Europe/London (20:30 UTC in BST)
     - cron: "30 20 * * 1-5"
   workflow_dispatch:
-  push:
-    branches: [master]
-    paths:
-      - "config.yaml"
-      - "position.json"
-      - "src/**"
-      - "scripts/github_decide.py"
-      - ".github/workflows/decide.yml"
 
 permissions:
   contents: write
@@ -26,6 +18,8 @@ concurrency:
 jobs:
   decide:
     runs-on: ubuntu-latest
+    outputs:
+      has_site: ${{ steps.publish.outputs.has_site }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,9 +27,11 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Sync + run decision
+        id: publish
         run: |
           uv sync
           uv run python scripts/github_decide.py
+          echo "has_site=true" >> "$GITHUB_OUTPUT"
 
       - name: Job summary
         run: |
@@ -43,6 +39,10 @@ jobs:
             echo "## Daily Thirty"
             echo
             cat DECISION.md
+            echo
+            echo "### Links"
+            echo "- UI (Pages): https://akanbaz.github.io/daily-thirty/"
+            echo "- DECISION.md: https://github.com/${{ github.repository }}/blob/master/DECISION.md"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit published site
