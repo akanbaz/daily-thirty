@@ -158,6 +158,10 @@ def decide(cfg: dict, position: Position | None) -> Decision:
     stop_pct = float(cfg.get("stop_pct", 0.04))
     watchlist = [str(t).upper() for t in cfg.get("watchlist", [])]
     daily = float(cfg.get("daily_pounds", 30))
+    # Anti-whipsaw: after a forced sell, only rotate into a name whose 10-day
+    # momentum clears this bar. Otherwise sit in cash and wait. 0 = rotate into
+    # any qualifying name (original behaviour).
+    rotate_min_momentum = float(cfg.get("rotate_min_momentum", 0.03))
 
     if position is None:
         scan = pick_next(watchlist)
@@ -245,6 +249,26 @@ def decide(cfg: dict, position: Position | None) -> Decision:
                 f"Exit reason: {exit_why}\n"
                 f"Last close: {close:.2f}\n"
                 f"{replacement}"
+                f"{_price_note(df)}"
+            ),
+            position=position,
+            exit_value=value,
+            reason=exit_why,
+        )
+
+    # Anti-whipsaw gate: the best name qualifies, but isn't clearly trending.
+    # Sell to cash and wait rather than churn into a weak name.
+    if scan.best.ret_10 < rotate_min_momentum:
+        return Decision(
+            action="SELL_AND_ROTATE",
+            message=(
+                f"Decision: SELL {position.ticker} (then wait in cash)\n"
+                f"Exit reason: {exit_why}\n"
+                f"Last close: {close:.2f}\n"
+                f"Best candidate is {scan.best.ticker} but its 10-day momentum "
+                f"({scan.best.ret_10:+.1%}) is below the rotate bar "
+                f"({rotate_min_momentum:.0%}). Staying in cash avoids churning into a "
+                f"weak trend — re-run in a day or two for a clearer setup."
                 f"{_price_note(df)}"
             ),
             position=position,
