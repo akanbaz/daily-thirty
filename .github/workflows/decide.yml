@@ -1,9 +1,7 @@
 name: Decide
 
 on:
-  schedule:
-    # Weekdays ~21:30 Europe/London (20:30 UTC in BST)
-    - cron: "30 20 * * 1-5"
+  # Manual only — you run it when you sit down to check (no scheduler).
   workflow_dispatch:
 
 permissions:

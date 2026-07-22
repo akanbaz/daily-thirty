@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from daily_thirty.decide import decide
-from daily_thirty.state import Position, load_config, load_position, save_position
+from daily_thirty.state import load_config, load_position, record_buy, save_position
 from daily_thirty.trading212 import credentials_configured, sync_position
 
 app = typer.Typer(
@@ -83,15 +83,12 @@ def cmd_bought(
     """Record a buy after you executed it in the broker."""
     ticker = ticker.upper()
     existing = load_position()
+    pos = record_buy(existing, ticker, shares, fill_price)
     if existing and existing.ticker == ticker:
-        total_shares = existing.shares + shares
-        avg = (existing.shares * existing.entry_price + shares * fill_price) / total_shares
-        pos = Position(ticker=ticker, shares=total_shares, entry_price=avg)
         console.print(
             f"Added to {ticker}. Now {pos.shares:.6f} shares, avg entry {pos.entry_price:.2f}."
         )
     else:
-        pos = Position(ticker=ticker, shares=shares, entry_price=fill_price)
         console.print(
             f"Saved position: {pos.shares:.6f} × {pos.ticker} @ {pos.entry_price:.2f}"
         )
