@@ -2,23 +2,17 @@
 
 **HOLD**
 
-Updated (UTC): `2026-07-22T11:11:28+00:00`
+Updated (UTC): `2026-07-22T11:19:20+00:00`
 
 ## Your position
 
-- **Ticker:** AMZN
-- **Shares:** REDACTED
-- **Entry price:** REDACTED
-- **Current price:** 247.55
-- **Cost:** £REDACTED
-- **Value now:** £REDACTED
-- **Profit / loss:** £REDACTED (+REDACTED)
+**AMZN** — shares, value & profit/loss are private (unlock on the site with your passphrase).
 
 ## Signals
 
 - Close **247.55** · SMA20 243.07 · SMA50 251.16 · SMA200 234.35
 - Momentum: 10-day +0.6% · 5-day +0.0%
-- Sell if it closes below **243.07** (SMA20) or **REDACTED** (stop)
+- Sell if it closes below **243.07** (SMA20).
 
 ## Watchlist
 
@@ -37,8 +31,7 @@ Why hold: still above stop and SMA20
 You can still add today's £30 into AMZN.
 ```
 
-## Run again
 - [Re-run decision](https://github.com/akanbaz/daily-thirty/actions/workflows/decide.yml)
 - [Record trade](https://github.com/akanbaz/daily-thirty/actions/workflows/record-trade.yml)
 
-> This page shows your real position size and P/L. The repo is public — make it private (Settings → General → Danger Zone) if you don't want this visible.
+> Financials (size / value / P&L) are encrypted and only viewable on the site with your passphrase. The repo is public.

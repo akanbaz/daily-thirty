@@ -6,14 +6,7 @@
   "next_ticker": null,
   "next_price": null,
   "position": {
-    "ticker": "AMZN",
-    "shares": REDACTED,
-    "entry_price": REDACTED,
-    "current_price": 247.5500030517578,
-    "cost": REDACTED,
-    "value": REDACTED,
-    "pnl": REDACTED,
-    "pnl_pct": REDACTED
+    "ticker": "AMZN"
   },
   "indicators": {
     "close": 247.5500030517578,
@@ -22,9 +15,8 @@
     "sma200": 234.3492000579834,
     "ret_10": 0.0063826626208978166,
     "ret_5": 0.00024242416769193476,
-    "stop_level": REDACTED,
     "stale": false,
-    "age_days": 6.269075804286533e-05
+    "age_days": 7.073304995342538e-05
   },
   "watchlist": [
     {
@@ -32,7 +24,6 @@
       "close": 327.739990234375,
       "qualifies": true,
       "ret_10": 0.0549796767235049,
-      "note": "uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move +4.1%",
       "is_held": false
     },
     {
@@ -40,7 +31,6 @@
       "close": 397.75,
       "qualifies": false,
       "ret_10": 0.02291431886129036,
-      "note": "not in uptrend (need price > SMA50 and SMA200)",
       "is_held": false
     },
     {
@@ -48,7 +38,6 @@
       "close": 247.5500030517578,
       "qualifies": false,
       "ret_10": 0.0063826626208978166,
-      "note": "not in uptrend (need price > SMA50 and SMA200)",
       "is_held": true
     },
     {
@@ -56,9 +45,9 @@
       "close": 544.4299926757812,
       "qualifies": true,
       "ret_10": 0.05487203915446015,
-      "note": "uptrend (above SMA50 & SMA200), 10d momentum +5.5%, 5d move -0.7%",
       "is_held": false
     }
   ],
-  "generated_at": "2026-07-22T11:11:28+00:00"
+  "generated_at": "2026-07-22T11:19:20+00:00",
+  "financials": "hidden"
 }
