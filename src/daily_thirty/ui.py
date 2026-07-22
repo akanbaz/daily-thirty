@@ -6,7 +6,7 @@ from pathlib import Path
 import streamlit as st
 
 from daily_thirty.decide import decide
-from daily_thirty.state import Position, load_config, load_position, save_position
+from daily_thirty.state import load_config, load_position, record_buy, save_position
 
 
 def main() -> None:
@@ -80,15 +80,12 @@ def main() -> None:
                 st.error("Enter ticker, shares, and fill price.")
             else:
                 existing = load_position()
+                new_pos = record_buy(existing, ticker, shares, fill)
                 if existing and existing.ticker == ticker:
-                    total = existing.shares + shares
-                    avg = (existing.shares * existing.entry_price + shares * fill) / total
-                    new_pos = Position(ticker=ticker, shares=total, entry_price=avg)
                     st.success(
                         f"Added to {ticker}. Now {new_pos.shares:.6f} shares @ avg {new_pos.entry_price:.2f}."
                     )
                 else:
-                    new_pos = Position(ticker=ticker, shares=shares, entry_price=fill)
                     st.success(
                         f"Saved {new_pos.shares:.6f} × {new_pos.ticker} @ {new_pos.entry_price:.2f}."
                     )

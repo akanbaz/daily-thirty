@@ -6,8 +6,8 @@ import typer
 from rich.console import Console
 
 from daily_thirty.decide import decide
-from daily_thirty.state import Position, load_config, load_position, save_position
-from daily_thirty.trading212 import credentials_configured, sync_position
+from daily_thirty.state import load_config, load_position, record_buy, save_position
+from daily_thirty.trading212 import credentials_configured, list_holdings, sync_position
 
 app = typer.Typer(
     name="daily",
@@ -52,6 +52,28 @@ def cmd_sync() -> None:
         console.print("Saved to position.json. Run [bold]daily decide[/bold] next.")
 
 
+@app.command("holdings")
+def cmd_holdings() -> None:
+    """Read-only: list ALL open Trading 212 positions (not just the tracked one)."""
+    if not credentials_configured():
+        console.print(
+            "Set [bold]T212_API_KEY[/bold] and [bold]T212_API_SECRET[/bold] first "
+            "(Trading 212 → Settings → API (Beta), read-only)."
+        )
+        raise typer.Exit(1)
+    rows = list_holdings()
+    if not rows:
+        console.print("No open positions.")
+        return
+    console.print(f"You hold [bold]{len(rows)}[/bold] position(s):")
+    for symbol, qty, avg, value in rows:
+        val = f" · value ~{value:.2f}" if value else ""
+        console.print(f"  {symbol}: {qty:.6f} shares @ avg {avg:.2f}{val}")
+    console.print(
+        "\n(The daily decision tracks the largest of these that is on your watchlist.)"
+    )
+
+
 @app.command("decide")
 def cmd_decide(
     sync: bool = typer.Option(
@@ -83,15 +105,12 @@ def cmd_bought(
     """Record a buy after you executed it in the broker."""
     ticker = ticker.upper()
     existing = load_position()
+    pos = record_buy(existing, ticker, shares, fill_price)
     if existing and existing.ticker == ticker:
-        total_shares = existing.shares + shares
-        avg = (existing.shares * existing.entry_price + shares * fill_price) / total_shares
-        pos = Position(ticker=ticker, shares=total_shares, entry_price=avg)
         console.print(
             f"Added to {ticker}. Now {pos.shares:.6f} shares, avg entry {pos.entry_price:.2f}."
         )
     else:
-        pos = Position(ticker=ticker, shares=shares, entry_price=fill_price)
         console.print(
             f"Saved position: {pos.shares:.6f} × {pos.ticker} @ {pos.entry_price:.2f}"
         )
