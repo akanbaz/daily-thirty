@@ -4,25 +4,10 @@ daily_pounds: 30
 # Exit if price falls this far below your entry (4% = middle of your 3–5% band)
 stop_pct: 0.04
 
-# Simple watchlist — edit freely. Only these names are considered.
+# Keep this short — GitHub Actions gets Yahoo rate-limits on big lists.
+# Add names only after their cache/*.parquet is committed (or fetches work).
 watchlist:
   - AAPL
   - MSFT
-  - GOOGL
   - AMZN
-  - META
-  - NVDA
-  - AVGO
-  - JPM
-  - V
-  - MA
-  - UNH
-  - XOM
-  - JNJ
-  - PG
-  - HD
-  - COST
-  - NFLX
   - AMD
-  - CRM
-  - ORCL

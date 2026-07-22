@@ -81,13 +81,12 @@ def pick_next(
             continue
         try:
             df = fetch_daily(ticker)
-            time.sleep(1.2)
+            time.sleep(0.15)
         except Exception as exc:
             err = str(exc).split("\n")[0]
             if "429" in err:
-                err = "rate-limited (429)"
+                err = "rate-limited (Yahoo 429) — need committed cache"
             notes.append(f"{ticker}: fetch failed ({err})")
-            time.sleep(2.0)
             continue
         row = _latest_row(df)
         if row is None:
