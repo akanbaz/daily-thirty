@@ -1,0 +1,70 @@
+name: Decide
+
+on:
+  schedule:
+    # Weekdays ~21:30 Europe/London (20:30 UTC in BST; close enough year-round)
+    - cron: "30 20 * * 1-5"
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "config.yaml"
+      - "position.json"
+      - "src/**"
+      - "scripts/github_decide.py"
+      - ".github/workflows/decide.yml"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-decide
+  cancel-in-progress: true
+
+jobs:
+  decide:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync + run decision
+        run: |
+          uv sync
+          uv run python scripts/github_decide.py
+
+      - name: Job summary
+        run: |
+          {
+            echo "## Daily Thirty"
+            echo
+            cat DECISION.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit published site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DECISION.md site/index.html site/decision.json
+          git diff --staged --quiet || git commit -m "chore: publish daily decision"
+          git push
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: decide
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

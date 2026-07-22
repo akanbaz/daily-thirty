@@ -1,0 +1,91 @@
+name: Record trade
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "bought or sold"
+        required: true
+        type: choice
+        options:
+          - bought
+          - sold
+      ticker:
+        description: "Ticker (required for bought)"
+        required: false
+        type: string
+      shares:
+        description: "Shares bought (required for bought)"
+        required: false
+        type: string
+        default: "0"
+      price:
+        description: "Fill price"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-decide
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Apply trade + refresh decision
+        env:
+          ACTION: ${{ inputs.action }}
+          TICKER: ${{ inputs.ticker }}
+          SHARES: ${{ inputs.shares }}
+          PRICE: ${{ inputs.price }}
+        run: |
+          uv sync
+          if [ "$ACTION" = "sold" ]; then
+            uv run python scripts/github_record.py sold --price "$PRICE"
+          else
+            uv run python scripts/github_record.py bought --ticker "$TICKER" --shares "$SHARES" --price "$PRICE"
+          fi
+
+      - name: Job summary
+        run: |
+          {
+            echo "## Trade recorded"
+            echo
+            cat DECISION.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit position + site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add position.json DECISION.md site/index.html site/decision.json || true
+          # position.json may be deleted on sell
+          git add -u position.json || true
+          git diff --staged --quiet || git commit -m "chore: record ${{ inputs.action }} and refresh decision"
+          git push
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: record
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
