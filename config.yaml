@@ -4,6 +4,11 @@ daily_pounds: 30
 # Exit if price falls this far below your entry (4% = middle of your 3–5% band)
 stop_pct: 0.04
 
+# Anti-whipsaw: after a forced sell, only rotate into a new stock if its 10-day
+# momentum is at least this strong. Otherwise wait in cash instead of churning
+# into a weak trend. Set to 0 to rotate into any qualifying name (old behaviour).
+rotate_min_momentum: 0.03
+
 # Keep this short — GitHub Actions gets Yahoo rate-limits on big lists.
 # Add names only after their cache/*.parquet is committed (or fetches work).
 watchlist:
