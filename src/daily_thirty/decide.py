@@ -81,10 +81,13 @@ def pick_next(
             continue
         try:
             df = fetch_daily(ticker)
-            time.sleep(0.6)
+            time.sleep(1.2)
         except Exception as exc:
-            notes.append(f"{ticker}: fetch failed ({exc})")
-            time.sleep(1.0)
+            err = str(exc).split("\n")[0]
+            if "429" in err:
+                err = "rate-limited (429)"
+            notes.append(f"{ticker}: fetch failed ({err})")
+            time.sleep(2.0)
             continue
         row = _latest_row(df)
         if row is None:
