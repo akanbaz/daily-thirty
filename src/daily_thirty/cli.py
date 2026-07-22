@@ -7,7 +7,7 @@ from rich.console import Console
 
 from daily_thirty.decide import decide
 from daily_thirty.state import load_config, load_position, record_buy, save_position
-from daily_thirty.trading212 import credentials_configured, sync_position
+from daily_thirty.trading212 import credentials_configured, list_holdings, sync_position
 
 app = typer.Typer(
     name="daily",
@@ -50,6 +50,28 @@ def cmd_sync() -> None:
         console.print("position.json cleared (flat / no matching holding).")
     else:
         console.print("Saved to position.json. Run [bold]daily decide[/bold] next.")
+
+
+@app.command("holdings")
+def cmd_holdings() -> None:
+    """Read-only: list ALL open Trading 212 positions (not just the tracked one)."""
+    if not credentials_configured():
+        console.print(
+            "Set [bold]T212_API_KEY[/bold] and [bold]T212_API_SECRET[/bold] first "
+            "(Trading 212 → Settings → API (Beta), read-only)."
+        )
+        raise typer.Exit(1)
+    rows = list_holdings()
+    if not rows:
+        console.print("No open positions.")
+        return
+    console.print(f"You hold [bold]{len(rows)}[/bold] position(s):")
+    for symbol, qty, avg, value in rows:
+        val = f" · value ~{value:.2f}" if value else ""
+        console.print(f"  {symbol}: {qty:.6f} shares @ avg {avg:.2f}{val}")
+    console.print(
+        "\n(The daily decision tracks the largest of these that is on your watchlist.)"
+    )
 
 
 @app.command("decide")
