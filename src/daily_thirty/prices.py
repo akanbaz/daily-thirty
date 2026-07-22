@@ -29,14 +29,14 @@ def fetch_daily(ticker: str, years: int = 2, *, force: bool = False) -> pd.DataF
         age_hours = (time.time() - path.stat().st_mtime) / 3600
         cached = pd.read_parquet(path)
         if not force and age_hours < FRESH_HOURS and not cached.empty:
-            return cached
+            return _tag(cached, stale=False, age_hours=age_hours)
 
     last_err: Exception | None = None
     try:
         df = _fetch_stooq(ticker)
         if not df.empty:
             df.to_parquet(path)
-            return df
+            return _tag(df, stale=False, age_hours=0.0)
     except Exception as exc:  # noqa: BLE001
         last_err = exc
 
@@ -44,15 +44,23 @@ def fetch_daily(ticker: str, years: int = 2, *, force: bool = False) -> pd.DataF
         df = _fetch_yahoo(ticker, years=years)
         if not df.empty:
             df.to_parquet(path)
-            return df
+            return _tag(df, stale=False, age_hours=0.0)
     except Exception as exc:  # noqa: BLE001
         last_err = exc
 
+    # Live fetch failed — fall back to cache, but mark it stale so callers can warn.
     if cached is not None and not cached.empty and age_hours < STALE_OK_HOURS:
-        return cached
+        return _tag(cached, stale=True, age_hours=age_hours)
     if last_err:
         raise last_err
     return pd.DataFrame()
+
+
+def _tag(df: pd.DataFrame, *, stale: bool, age_hours: float) -> pd.DataFrame:
+    """Attach freshness metadata so the decision layer can flag stale prices."""
+    df.attrs["stale"] = stale
+    df.attrs["age_hours"] = age_hours
+    return df
 
 
 def _fetch_stooq(ticker: str) -> pd.DataFrame:
